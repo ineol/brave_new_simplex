@@ -1,0 +1,8 @@
+[package]
+
+name = "simplex"
+version = "0.0.1"
+authors = ["Léo Stefanesco <leo.lveb@gmail.com>"]
+
+[dependencies]
+num = "*"
