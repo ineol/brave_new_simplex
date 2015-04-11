@@ -6,3 +6,4 @@ authors = ["Léo Stefanesco <leo.lveb@gmail.com>"]
 
 [dependencies]
 num = "*"
+log = "*"
