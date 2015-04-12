@@ -1,11 +1,10 @@
-
 use std::vec::Vec;
 use num::Num;
 use std::fmt::{Display, Formatter, Error, Debug};
 use std::cmp::{Ordering};
 use std::mem;
 
-use self::ObjectiveKind::*;
+pub use self::ObjectiveKind::*;
 
 #[derive(PartialEq, Debug)]
 pub struct Matrix<F: Num + PartialEq> {
@@ -255,12 +254,14 @@ impl<F: OrdField> Display for Dictionary<F> {
     }
 }
 
+#[derive(Eq, PartialEq, Debug)]
 pub enum OrderRel {
     LT,
     GT,
     EQ,
 }
 
+#[derive(Eq, PartialEq, Debug)]
 pub enum ObjectiveKind {
     Maximize,
     Minimize,
@@ -278,30 +279,44 @@ impl<F: OrdField> Inequation<F> {
     }
 }
 
+pub struct NormalLinearProgram<F: OrdField> {
+    ineqs: Vec<Inequation<F>>,
+    obj: Vec<F>,
+    obj_kind: ObjectiveKind,
+    // TODO(leo): names
+}
 
-
-pub mod test {
-    use super::*;
-
-    pub fn make_dict() -> Dictionary<f64> {
-        Dictionary {
-            m: Matrix {
-                h: 2,
-                w: 3,
-                m: vec![8., 1., 2., 12.,  -3., -4.]
-            },
-            ll: vec![3, 4],
-            lc: vec![0, 1, 2],
-            obj: vec![0., 3., 8.],
-            weq: vec![0., 0., 0.],
-            var_name: "x",
+impl<F: OrdField> NormalLinearProgram<F> {
+    pub fn check_integrity(&self) {
+        for v in self.ineqs.iter() {
+            assert_eq!(v.size(), self.obj.len());
         }
     }
+}
+
+pub fn make_dict() -> Dictionary<f64> {
+    Dictionary {
+        m: Matrix {
+            h: 2,
+            w: 3,
+            m: vec![8., 1., 2., 12.,  -3., -4.]
+        },
+        ll: vec![3, 4],
+        lc: vec![0, 1, 2],
+        obj: vec![0., 3., 8.],
+        weq: vec![0., 0., 0.],
+        var_name: "x",
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
 
     #[test]
     fn test_at() {
         let lp = make_dict();
-        assert_eq!(lp.m.at(1, 2), 4.);
+        assert_eq!(lp.m.at(1, 2), -4.);
         assert_eq!(lp.m.at(0, 1), 1.);
         assert_eq!(lp.m.at(0, 2), 2.);
         assert_eq!(lp.m.at(1, 1), -3.);
@@ -315,7 +330,7 @@ pub mod test {
     #[test]
     fn test_leaving_variable() {
         let lp = make_dict();
-        assert_eq!(lp.find_leaving_variable(1), super::LeavingCase::Pos(1, -4.0))
+        assert_eq!(lp.find_leaving_variable(1), super::LeavingCase::Pos(1, 4.0)) // TODO(leo): correct??
     }
 
     #[test]
