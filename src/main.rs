@@ -8,7 +8,7 @@ use std::path::Path;
 use std::io::Read;
 
 fn main() {
-    let path = Path::new("simple.lp");
+    let path = Path::new("super_simple.lp");
     let mut file = match File::open(&path) {
         Err(why) => panic!("Could not open file because: {}", why),
         Ok(file) => file,

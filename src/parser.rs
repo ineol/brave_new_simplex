@@ -6,7 +6,7 @@ use std::option::Option::*;
 
 use linear_system::*;
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub struct PInequation<F: OrdField> {
     prods: Vec<(F, String)>,
     kind: OrderRel,
@@ -20,7 +20,7 @@ pub struct PBound {
     lower: Option<f64>,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct LinearProgram {
     obj: Vec<(f64, String)>,
     obj_cst: f64,
@@ -53,7 +53,7 @@ impl LinearProgram {
             }
         }
 
-        let mut obj: Vec<f64> = Self::init_zero_vec(self.vars.len() + 1, 0.0);
+        let mut obj: Vec<f64> = init_zero_vec(self.vars.len() + 1, 0.0);
         let mult: f64 = match self.goal {
             Maximize => 1.0,
             Minimize => -1.0,
@@ -63,14 +63,14 @@ impl LinearProgram {
             obj[self.var_idx(&x_j) + 1] = mult * c_j;
         }
 
-        let mut lc: Vec<usize> = Self::init_zero_vec(m.w, 0);
+        let mut lc: Vec<usize> = init_zero_vec(m.w, 0);
         let mut i = 0;
         for label in lc.iter_mut() {
             *label = i;
             i += 1;
         }
 
-        let mut ll: Vec<usize> = Self::init_zero_vec(m.h, 0);
+        let mut ll: Vec<usize> = init_zero_vec(m.h, 0);
         for label in ll.iter_mut() {
             *label = i;
             i += 1;
@@ -82,7 +82,7 @@ impl LinearProgram {
             ll: ll,
             lc: lc,
             obj: obj,
-            weq: Self::init_zero_vec(mw, 0.0),
+            weq: init_zero_vec(mw, 0.0),
             var_name: "x",
         }
     }
@@ -160,13 +160,7 @@ impl LinearProgram {
         panic!("Couldn't find variable {}", var);
     }
 
-    fn init_zero_vec<T: Copy>(n: usize, val: T) -> Vec<T> {
-        let mut vec: Vec<T> = Vec::with_capacity(n);
-        for _ in 0..n {
-            vec.push(val);
-        }
-        vec
-    }
+
 }
 
 #[derive(Clone)]

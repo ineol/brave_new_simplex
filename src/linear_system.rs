@@ -6,6 +6,16 @@ use std::mem;
 
 pub use self::ObjectiveKind::*;
 
+// Utils
+pub fn init_zero_vec<T: Copy>(n: usize, val: T) -> Vec<T> {
+    let mut vec: Vec<T> = Vec::with_capacity(n);
+    for _ in 0..n {
+        vec.push(val);
+    }
+    vec
+}
+
+
 #[derive(PartialEq, Debug)]
 pub struct Matrix<F: Num + PartialEq> {
     pub h: usize,
@@ -121,6 +131,24 @@ impl<F: OrdField> Dictionary<F> {
         res.unwrap_or(NonNeg)
     }
 
+    fn eval_line(&self, sol: &[F], i: usize) -> F {
+        let mut sum = self.m.at(i, 0);
+        for j in 1..self.w() {
+            sum = sum + self.m.at(i, j) * sol[j-1];
+        }
+        sum
+    }
+
+    pub fn is_solution(&self, sol: Vec<F>) -> bool {
+        assert!(sol.len() == self.obj.len() - 1);
+        for i in 0..self.h() {
+            if self.eval_line(&sol, i) < F::zero() {
+                return false;
+            }
+        }
+        true
+    }
+
     pub fn find_entering_variable(&self) -> Step { //TODO(leo): handle all cases
         use self::Step::*;
         println!("{}", self);
@@ -130,6 +158,9 @@ impl<F: OrdField> Dictionary<F> {
                 if let LeavingCase::Pos(i, _) = self.find_leaving_variable(j) {
                     println!("ctn with i={} j={}", i, j);
                     return Continue(i, j)
+                } else {
+                    println!("UNBOUNDED");
+                    return Unbounded(j);
                 }
             }
         }
@@ -137,7 +168,12 @@ impl<F: OrdField> Dictionary<F> {
         Finished
     }
 
-    pub fn test_simplex(&mut self) {
+    pub fn test_simplex(&mut self) { // TODO: handle all cases
+        let do_first_phase = {
+            let nil_sol: Vec<F> = init_zero_vec(self.w()-1, F::zero());
+            self.is_solution(nil_sol)
+        };
+        println!("DODODO {}", do_first_phase);
         while let Step::Continue(i, j) = self.find_entering_variable() {
             self.perform_pivot(j, i);
             println!("{}", self);
@@ -193,41 +229,6 @@ impl<F: OrdField> Dictionary<F> {
         // Change variable names
         mem::swap(&mut self.ll[il], &mut self.lc[je]);
     }
-
-    /*
-    pub fn dual(&self) -> Dictionary<F> {
-        let dobj = {
-            let mut res: Vec<F> = vec![F::zero()]; // FIXME(leo): true???
-            for i in 0..self.h() {
-                res.push(self.m.at(i, 0));
-            }
-            res
-        };
-        let dm = unsafe {
-            let mut m: Matrix<F> = Matrix::alocate_mem(self.w()-1, self.h()+1);
-            for i in 0..self.h() {
-                for j in 1..self.w() {
-                    m.set_at(j-1, i+1, self.m.at(i, j));
-                }
-            }
-            for j in 1..self.w() {
-                m.set_at(j-1, 0, self.obj[j]);
-            }
-            m
-        };
-        Dictionary {
-            m: dm,
-            lc: {
-                let mut res = vec![0];
-                for i in 0..self.h() { res.push(self.ll[i]); }
-                res
-            },
-            ll: Vec::from(&self.lc.clone()[1..]), // TODO(leo): do better ?
-            weq: dobj.clone(),
-            obj: dobj,
-            var_name: "y",
-        }
-    } */
 }
 
 impl<F: OrdField> Display for Dictionary<F> {
@@ -262,14 +263,14 @@ impl<F: OrdField> Display for Dictionary<F> {
     }
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Copy, Clone)]
 pub enum OrderRel {
     LT,
     GT,
     EQ,
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Copy, Clone)]
 pub enum ObjectiveKind {
     Maximize,
     Minimize,
