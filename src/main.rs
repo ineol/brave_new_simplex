@@ -3,8 +3,23 @@ extern crate num;
 mod linear_system;
 mod parser;
 
-fn main() {
-    let mut lp = linear_system::make_dict();
+use std::fs::File;
+use std::path::Path;
+use std::io::Read;
 
-    lp.test_simplex();
+fn main() {
+    let path = Path::new("simple.lp");
+    let mut file = match File::open(&path) {
+        Err(why) => panic!("Could not open file because: {}", why),
+        Ok(file) => file,
+    };
+
+    let mut src = String::new();
+    file.read_to_string(&mut src);
+    println!("{}", &src);
+    let lp = parser::Parser::parse_lp(&src);
+    println!("{:?}\n\n\n\n", lp);
+
+    let mut d = lp.to_dict();
+    d.test_simplex();
 }

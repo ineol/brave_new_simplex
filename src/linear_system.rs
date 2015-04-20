@@ -8,9 +8,9 @@ pub use self::ObjectiveKind::*;
 
 #[derive(PartialEq, Debug)]
 pub struct Matrix<F: Num + PartialEq> {
-    h: usize,
-    w: usize,
-    m: Vec<F> // Size is (at least) w * h
+    pub h: usize,
+    pub w: usize,
+    pub m: Vec<F> // Size is (at least) w * h
 }
 
 impl<F: Num + Copy + PartialEq> Matrix<F> {
@@ -26,7 +26,7 @@ impl<F: Num + Copy + PartialEq> Matrix<F> {
         self.m[j + self.w * i] = x;
     }
 
-    pub unsafe fn alocate_mem(h: usize, w: usize) -> Matrix<F> {
+    pub unsafe fn allocate_mem(h: usize, w: usize) -> Matrix<F> {
         let mut m: Vec<F> = Vec::with_capacity(h * w);
         m.set_len(h * w);
         Matrix {
@@ -35,6 +35,14 @@ impl<F: Num + Copy + PartialEq> Matrix<F> {
             m: m,
         }
     }
+
+    pub fn allocate_zeroed(h: usize, w: usize) -> Matrix<F> {
+        let mut m = unsafe { Self::allocate_mem(h, w) };
+        for i in 0..h*w {
+            m.m[i] = F::zero();
+        }
+        m
+    }
 }
 
 pub trait OrdField: Num + PartialEq + Copy + PartialOrd + Display + Debug {}
@@ -42,12 +50,12 @@ impl<F: Num + PartialEq + Copy + PartialOrd + Display + Debug> OrdField for F {}
 
 #[derive(PartialEq, Debug)]
 pub struct Dictionary<F: OrdField> {
-    m: Matrix<F>,
-    ll: Vec<usize>, // lines labels
-    lc: Vec<usize>, // cols labels
-    obj: Vec<F>,
-    weq: Vec<F>,  // working equation
-    var_name: &'static str,
+    pub m: Matrix<F>,
+    pub ll: Vec<usize>, // lines labels
+    pub lc: Vec<usize>, // cols labels
+    pub obj: Vec<F>, // We maximize
+    pub weq: Vec<F>,  // working equation
+    pub var_name: &'static str,
 }
 
 #[derive(PartialEq, Debug)]
