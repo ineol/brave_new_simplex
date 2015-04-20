@@ -13,7 +13,7 @@ pub struct PInequation<F: OrdField> {
     cst: F,
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct PBound {
     var: String,
     upper: Option<f64>,
@@ -23,17 +23,22 @@ pub struct PBound {
 #[derive(PartialEq, Debug)]
 pub struct LinearProgram {
     obj: Vec<(f64, String)>,
+    obj_cst: f64,
     goal: ObjectiveKind,
     ineqs: Vec<PInequation<f64>>,
     bounds: Vec<PBound>,
     vars: Vec<String>,
+
+    dummy_idx: usize,
 }
 
 impl LinearProgram {
-    pub fn to_dict(&self) -> Dictionary<f64> {
-        let mut m: Matrix<f64> = unsafe {
-            Matrix::allocate_zeroed(self.ineqs.len(), self.vars.len() + 1) // +1 for the cst term
-        };
+    pub fn to_dict(&mut self) -> Dictionary<f64> {
+        self.normalize_bounds();
+
+        let mut m: Matrix<f64> =
+            Matrix::allocate_zeroed(self.ineqs.len(), self.vars.len() + 1); // +1 for the cst term
+
         for (i, ineq) in self.ineqs.iter().enumerate() {
             let mult: f64 = match ineq.kind {
                 OrderRel::EQ => panic!("The equalities must have been deleted before!"),
@@ -53,7 +58,7 @@ impl LinearProgram {
             Maximize => 1.0,
             Minimize => -1.0,
         };
-        obj[0] = 0.0;
+        obj[0] = self.obj_cst;
         for &(c_j, ref x_j) in self.obj.iter() {
             obj[self.var_idx(&x_j) + 1] = mult * c_j;
         }
@@ -80,6 +85,70 @@ impl LinearProgram {
             weq: Self::init_zero_vec(mw, 0.0),
             var_name: "x",
         }
+    }
+
+    fn normalize_bounds(&mut self) {
+        let bounds = self.bounds.clone();
+        for (i, _) in bounds.iter().enumerate() {
+            self.handle_upper_bound(i);
+            self.handle_lower_bound(i);
+        }
+    }
+
+    fn handle_upper_bound(&mut self, bidx: usize) {
+        let b = self.bounds[bidx].clone();
+        if let Some(u) = b.upper {
+            self.ineqs.push(PInequation {
+                prods: vec![(1.0, b.var)],
+                kind: OrderRel::LT,
+                cst: u,
+            });
+            self.bounds[bidx].upper = None;
+        }
+    }
+
+    // The bound has no upper bound
+    fn handle_lower_bound(&mut self, bidx: usize) {
+        let mut b = self.bounds[bidx].clone();
+        match b {
+            PBound { var: ref x_j, upper: None, lower: Some(lower) } => {
+                if lower == 0.0 { return; }
+                self.translate_var(&x_j, lower);
+                let nvar = self.create_dummy_var(x_j, "tr");
+                self.bounds[bidx] = PBound {
+                    var: nvar,
+                    upper: None,
+                    lower: Some(0.0),
+                };
+            },
+            _ => panic!("Problem while handling lower bounds"),
+        }
+
+    }
+
+    fn translate_var(&mut self, x_j: &str, t: f64) {
+        for ineq in self.ineqs.iter_mut() {
+            let j = match ineq.prods.iter().position(|x| x.1 == x_j) {
+                Some(j) => j,
+                None => continue,
+            };
+            let k = ineq.prods[j].0;
+            println!("Soooo: {} || {}", k, ineq.cst);
+            ineq.cst += k * t;
+        }
+        match self.obj.iter().position(|x| x.1 == x_j) {
+            Some(j) => {
+                self.obj_cst -= t * self.obj[j].0;
+            },
+            None => (),
+        }
+    }
+
+    // TODO: record the relationships
+    fn create_dummy_var(&mut self, var: &str, msg: &str) -> String {
+        let res = format!("{}${}${}", var, self.dummy_idx, msg).to_string();
+        self.dummy_idx += 1;
+        res
     }
 
     fn var_idx(&self, var: &str) -> usize {
@@ -143,10 +212,13 @@ impl<'a> Parser<'a> {
 
         LinearProgram {
            obj: obj,
+           obj_cst: 0.0,
            goal: goal,
            ineqs: ineqs,
            bounds: bounds,
            vars: vars,
+
+           dummy_idx: 0,
         }
     }
 

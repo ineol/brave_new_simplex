@@ -17,7 +17,7 @@ fn main() {
     let mut src = String::new();
     file.read_to_string(&mut src);
     println!("{}", &src);
-    let lp = parser::Parser::parse_lp(&src);
+    let mut lp = parser::Parser::parse_lp(&src);
     println!("{:?}\n\n\n\n", lp);
 
     let mut d = lp.to_dict();
