@@ -133,7 +133,6 @@ impl LinearProgram {
                 None => continue,
             };
             let k = ineq.prods[j].0;
-            println!("Soooo: {} || {}", k, ineq.cst);
             ineq.cst += k * t;
         }
         match self.obj.iter().position(|x| x.1 == x_j) {

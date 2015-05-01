@@ -8,7 +8,7 @@ use std::path::Path;
 use std::io::Read;
 
 fn main() {
-    let path = Path::new("generated-100-100.lp");
+    let path = Path::new("generated-1000-1000.lp");
     let mut file = match File::open(&path) {
         Err(why) => panic!("Could not open file because: {}", why),
         Ok(file) => file,
@@ -16,10 +16,10 @@ fn main() {
 
     let mut src = String::new();
     file.read_to_string(&mut src);
-    println!("{}", &src);
     let mut lp = parser::Parser::parse_lp(&src);
-    println!("{:?}\n\n\n\n", lp);
 
     let mut d = lp.to_dict();
+    println!("Call test_simplex");
+
     d.test_simplex();
 }

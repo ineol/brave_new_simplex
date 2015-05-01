@@ -32,15 +32,15 @@ pub struct Matrix<F: Num + PartialEq> {
 
 impl<F: Num + Copy + PartialEq> Matrix<F> {
     pub fn at(&self, i: usize, j: usize) -> F {
-        assert!(i < self.h);
-        assert!(j < self.w);
-        self.m[j + self.w * i]
+        // assert!(i < self.h);
+        // assert!(j < self.w);
+        unsafe { *self.m.get_unchecked(j + self.w * i) }
     }
 
     pub fn set_at(&mut self, i: usize, j:usize, x: F) {
-        assert!(i < self.h);
-        assert!(j < self.w);
-        self.m[j + self.w * i] = x;
+        // assert!(i < self.h);
+        // assert!(j < self.w);
+        unsafe { *self.m.get_unchecked_mut(j + self.w * i) = x; }
     }
 
     pub unsafe fn allocate_mem(h: usize, w: usize) -> Matrix<F> {
@@ -113,7 +113,7 @@ pub enum Step {
 
 impl<F: OrdField> Dictionary<F> {
     pub fn check_integrity(&self) {
-        println!("{:?}", self);
+        //println!("{:?}", self);
         assert!(self.m.h == self.ll.len());
         assert!(self.m.w == self.lc.len());
         assert!(self.m.w == self.obj.len());
@@ -153,7 +153,7 @@ impl<F: OrdField> Dictionary<F> {
 
     /// Creates a new `Dictionary` without the component `xr`
     /// It creates a copy of itself if xr is not a variable of `self`
-    fn project_dict(&self, xr: usize, orig: &mut Dictionary<F>) { // FIXME(leo): fix objective function!!!
+    fn project_dict(&self, xr: usize, orig: &mut Dictionary<F>) {
         if let Some(ir) = self.ll.iter().position(|&x| x == xr) {
             self.m.blit(&mut orig.m, Rect{i: 0, j: 0, h: ir, w: self.w()}, 0, 0);
             self.m.blit(&mut orig.m, Rect{i: ir+1, j: 0, h: self.h()-ir-1, w: self.w()}, ir, 0);
@@ -209,7 +209,7 @@ impl<F: OrdField> Dictionary<F> {
 
     pub fn find_leaving_variable(&self, je: usize) -> LeavingCase<F> { // TODO(leo): get rid of dumb LeavingCase :/
         use self::LeavingCase::*;
-        assert!(je != 0);
+        //assert!(je != 0);
         let coeffs = (0..self.h()).map(|i| if self.m.at(i, je) < F::zero() {
             Pos(i, F::zero() - self.m.at(i, 0) / self.m.at(i, je))
         } else {
@@ -233,12 +233,11 @@ impl<F: OrdField> Dictionary<F> {
         for j in 1..self.w() {
             sum = sum + self.m.at(i, j) * sol[j-1];
         }
-        println!("SUM= {}", sum);
         sum
     }
 
     pub fn is_solution(&self, sol: Vec<F>) -> bool {
-        assert!(sol.len() == self.obj.len() - 1);
+        //assert!(sol.len() == self.obj.len() - 1);
         for i in 0..self.h() {
             if self.eval_line(&sol, i) < F::zero() {
                 println!("BUURRRNNN");
@@ -250,7 +249,6 @@ impl<F: OrdField> Dictionary<F> {
 
     pub fn find_entering_variable(&self) -> Step { //TODO(leo): handle all cases
         use self::Step::*;
-        println!("{}", self);
         for j in 1..self.w() {
             if self.obj[j] > F::zero() {
                 println!("found non neg {:?} {:?}", j, self.find_leaving_variable(j));
@@ -267,8 +265,31 @@ impl<F: OrdField> Dictionary<F> {
         Finished
     }
 
+    pub fn find_entering_variable_d(&self) -> Step {
+        use self::Step::*;
+        let mut max = self.obj[1];
+        let mut jmax = 1;
+        for (j, &c_j) in self.obj[1..].iter().enumerate() {
+            if c_j >= max { max = c_j; jmax = j; }
+        }
+
+        let j = jmax + 1;
+        println!("j={}, max={}", j, max);
+
+        if max > F::zero() {
+            if let LeavingCase::Pos(i, _) = self.find_leaving_variable(j) {
+                println!("ctn with i={} j={}", i, j);
+                return Continue(i, j)
+            } else {
+                println!("UNBOUNDED");
+                return Unbounded(j);
+            }
+        }
+        Finished
+    }
+
     pub fn test_simplex(&mut self) { // TODO: handle all cases
-        println!("INPUT OF PROGRAM:\n {}", self);
+        //println!("INPUT OF PROGRAM:\n {}", self);
 
         let do_first_phase = {
             let nil_sol: Vec<F> = init_zero_vec(self.w()-1, F::zero());
@@ -281,16 +302,17 @@ impl<F: OrdField> Dictionary<F> {
             let mut d = self.create_first_dict();
             let i = d.find_first_pivot();
             d.perform_pivot(self.w(), i);
-            println!("{}", d);
+            //println!("{}", d);
             d.test_simplex();
-            println!("END OF FIRST PHASE with res {}", d.obj[0]);
+            //println!("END OF FIRST PHASE with res {}", d.obj[0]);
             d.project_dict(FIRST_PHASE_IDX, self);
-            println!("DICT FOR BEGINNING OF SECOND PHASE:\n {}", self);
+            //println!("DICT FOR BEGINNING OF SECOND PHASE:\n {}", self);
         }
 
-        while let Step::Continue(i, j) = self.find_entering_variable() {
+        while let Step::Continue(i, j) = self.find_entering_variable_d() {
             self.perform_pivot(j, i);
-            println!("{}", self);
+            //println!("{}", self);
+            println!("obj={}", self.obj[0]);
         }
     }
 
@@ -298,7 +320,7 @@ impl<F: OrdField> Dictionary<F> {
     /// `il`: leaving varaible
     pub fn perform_pivot(&mut self, je: usize, il: usize) {
         println!("Performing pivot: entering {}, leaving {}", je, il);
-        assert!(je != 0);
+        //assert!(je != 0);
         for x in self.weq.iter_mut() {
             *x = F::zero();
         }
@@ -331,7 +353,7 @@ impl<F: OrdField> Dictionary<F> {
         }
         let a = self.obj[je];
         for j in 0..self.w() {
-            assert!(a != F::zero());
+            //assert!(a != F::zero());
             let old = self.obj[j];
             if j != je {
                 self.obj[j] = old + a*self.weq[j];
