@@ -6,9 +6,16 @@ mod parser;
 use std::fs::File;
 use std::path::Path;
 use std::io::Read;
+use std::env;
 
 fn main() {
-    let path = Path::new("generated-1000-1000.lp");
+    let args: Vec<_> = env::args().collect();
+    if args.len() != 2 {
+        println!("USAGE: cargo run [--release] -- file.lp");
+        return;
+    }
+
+    let path = Path::new("/Users/ineol/Code/simplex/generated-1000-1000.lp");
     let mut file = match File::open(&path) {
         Err(why) => panic!("Could not open file because: {}", why),
         Ok(file) => file,

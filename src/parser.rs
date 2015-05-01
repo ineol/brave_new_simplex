@@ -1,5 +1,6 @@
 use std::option::Option;
 use std::str;
+use std::collections::HashMap;
 use std::str::FromStr;
 
 use std::option::Option::*;
@@ -27,8 +28,9 @@ pub struct LinearProgram {
     goal: ObjectiveKind,
     ineqs: Vec<PInequation<f64>>,
     bounds: Vec<PBound>,
-    vars: Vec<String>,
 
+    vars: Vec<String>,
+    vars_inv: HashMap<String, usize>,
     dummy_idx: usize,
 }
 
@@ -150,15 +152,21 @@ impl LinearProgram {
         res
     }
 
+    #[inline(never)]
     fn var_idx(&self, var: &str) -> usize {
-        for (i, v) in self.vars.iter().enumerate() {
-            if v == var {
-                return i;
-            }
+        if let Some(&res) = self.vars_inv.get(var) {
+            return res;
         }
         panic!("Couldn't find variable {}", var);
     }
 
+    fn build_vars_inv(vars: &Vec<String>) -> HashMap<String, usize> {
+        let mut res = HashMap::new();
+        for (i, s) in vars.iter().enumerate() {
+            res.insert(s.clone(), i);
+        }
+        res
+    }
 
 }
 
@@ -202,6 +210,7 @@ impl<'a> Parser<'a> {
         println!("{}", r);
         p.ws();
         let vars = p.variables();
+        let vars_inv = LinearProgram::build_vars_inv(&vars);
 
         LinearProgram {
            obj: obj,
@@ -210,6 +219,7 @@ impl<'a> Parser<'a> {
            ineqs: ineqs,
            bounds: bounds,
            vars: vars,
+           vars_inv: vars_inv,
 
            dummy_idx: 0,
         }

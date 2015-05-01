@@ -15,6 +15,15 @@ pub fn init_zero_vec<T: Copy>(n: usize, val: T) -> Vec<T> {
     vec
 }
 
+// To avoid bound checking
+pub fn vec_at<T: Copy>(v: &Vec<T>, n: usize) -> T {
+    unsafe { *v.get_unchecked(n) }
+}
+
+pub fn vec_at_mut<T>(v: &mut Vec<T>, n: usize) -> &mut T {
+    unsafe { v.get_unchecked_mut(n) }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Rect {
     pub i: usize,
@@ -327,9 +336,9 @@ impl<F: OrdField> Dictionary<F> {
         let k = F::zero() - F::one() / self.m.at(il, je);
         for j in 0..self.w() {
             if j != je {
-                self.weq[j] = k * self.m.at(il, j);
+                *vec_at_mut(&mut self.weq, j) = k * self.m.at(il, j);
             } else {
-                self.weq[j] = F::zero() - k;
+                *vec_at_mut(&mut self.weq, j) = F::zero() - k;
             }
         }
 
@@ -340,25 +349,26 @@ impl<F: OrdField> Dictionary<F> {
                 for j in 0..self.w() {
                     let old = self.m.at(i, j);
                     if j != je {
-                        self.m.set_at(i, j, old + a*self.weq[j]);
+                        self.m.set_at(i, j, old + a*vec_at(&self.weq, j));
                     } else {
-                        self.m.set_at(i, j, a*self.weq[j]);
+                        self.m.set_at(i, j, a*vec_at(&self.weq, j));
                     }
                 }
             } else {
                 for j in 0..self.w() {
-                    self.m.set_at(i, j, self.weq[j]);
+                    self.m.set_at(i, j, vec_at(&self.weq, j));
                 }
             }
         }
         let a = self.obj[je];
         for j in 0..self.w() {
             //assert!(a != F::zero());
-            let old = self.obj[j];
+            let old = vec_at(&self.obj, j);
             if j != je {
-                self.obj[j] = old + a*self.weq[j];
+                self.obj[j] = old + a*vec_at(&self.weq, j);
             } else {
-                self.obj[j] = a*self.weq[j];
+                self.obj[j] = a*vec_at(&self.weq, j);
+
             }
         }
 
