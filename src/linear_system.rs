@@ -15,8 +15,15 @@ pub fn init_zero_vec<T: Copy>(n: usize, val: T) -> Vec<T> {
     vec
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct Rect {
+    pub i: usize,
+    pub j: usize,
+    pub h: usize,
+    pub w: usize,
+}
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Matrix<F: Num + PartialEq> {
     pub h: usize,
     pub w: usize,
@@ -53,12 +60,21 @@ impl<F: Num + Copy + PartialEq> Matrix<F> {
         }
         m
     }
+
+    pub fn blit(&self, dst: &mut Matrix<F>, src: Rect, i_dst: usize, j_dst: usize) {
+        for i in 0..src.h {
+            for j in 0..src.w {
+                let val = self.at(src.i + i, src.j + j);
+                dst.set_at(i_dst+i, j_dst+j, val);
+            }
+        }
+    }
 }
 
 pub trait OrdField: Num + PartialEq + Copy + PartialOrd + Display + Debug {}
 impl<F: Num + PartialEq + Copy + PartialOrd + Display + Debug> OrdField for F {}
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Dictionary<F: OrdField> {
     pub m: Matrix<F>,
     pub ll: Vec<usize>, // lines labels
@@ -73,6 +89,8 @@ enum LeavingCase<F: PartialOrd> {
     NonNeg, // +infty
     Pos(usize, F)
 }
+
+const FIRST_PHASE_IDX: usize = 1 << 30;
 
 impl<F: PartialOrd + Copy> PartialOrd for LeavingCase<F> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -110,6 +128,85 @@ impl<F: OrdField> Dictionary<F> {
         self.m.h
     }
 
+
+    fn create_first_dict(&self) -> Dictionary<F> {
+       let mut m = Matrix::allocate_zeroed(self.h(), self.w() + 1);
+       self.m.blit(&mut m, Rect {i: 0, j: 0, h: self.h(), w: self.w()}, 0, 0);
+       for i in 0..self.h() {
+           m.set_at(i, self.w(), F::one());
+       }
+       let mut lc = self.lc.clone();
+       lc.push(FIRST_PHASE_IDX);
+       let mut obj = init_zero_vec(m.w -1, F::zero());
+       obj.push(F::zero() - F::one());
+       let res = Dictionary {
+           m: m,
+           ll: self.ll.clone(),
+           lc: lc,
+           obj: obj,
+           weq: init_zero_vec(self.w()+1, F::zero()),
+           var_name: self.var_name,
+       };
+       res.check_integrity();
+       res
+    }
+
+    /// Creates a new `Dictionary` without the component `xr`
+    /// It creates a copy of itself if xr is not a variable of `self`
+    fn project_dict(&self, xr: usize, orig: &mut Dictionary<F>) { // FIXME(leo): fix objective function!!!
+        if let Some(ir) = self.ll.iter().position(|&x| x == xr) {
+            self.m.blit(&mut orig.m, Rect{i: 0, j: 0, h: ir, w: self.w()}, 0, 0);
+            self.m.blit(&mut orig.m, Rect{i: ir+1, j: 0, h: self.h()-ir-1, w: self.w()}, ir, 0);
+            orig.fix_obj_after_first_phase(self, FIRST_PHASE_IDX);
+            let mut ll = self.ll.clone();
+            ll.remove(ir); // TODO(leo): optimize?
+            orig.ll= ll;
+            orig.lc = self.lc.clone();
+        } else if let Some(jr) = self.lc.iter().position(|&x| x == xr) {
+            self.m.blit(&mut orig.m, Rect{i: 0, j: 0, h: self.h(), w: jr}, 0, 0);
+            self.m.blit(&mut orig.m, Rect{i: 0, j: jr+1, h: self.h(), w: self.w()-jr-1}, 0, jr);
+            orig.fix_obj_after_first_phase(self, FIRST_PHASE_IDX);
+            let mut obj = self.obj.clone();
+            let mut lc = self.lc.clone();
+            obj.remove(jr);
+            lc.remove(jr);
+            orig.ll= self.ll.clone();
+            orig.lc = lc;
+        }
+    }
+
+    fn fix_obj_after_first_phase(&mut self, afp: &Dictionary<F>, exc: usize) {
+        let mut res = init_zero_vec(self.w(), F::zero());
+        res[0] = self.obj[0];
+        for (j, &c_j) in self.obj.iter().enumerate() {
+            let x_j = self.lc[j];
+            if x_j == exc { continue; }
+            if c_j != F::zero() {
+                if let Some(&x_i) = afp.ll.iter().find(|&x| *x == x_j) { // TODO(leo): WTF???
+                    println!("beep");
+                    // x_i is a primary variable of afp.
+                    for j in 0..res.len() {
+                        res[j] = res[j] + c_j * self.m.at(x_i, j); // I FIXME(leo): i hate myself
+                    }
+                }
+            }
+        }
+        self.obj = res;
+    }
+
+    fn find_first_pivot(&self) -> usize {
+        let mut res = 0;
+        let mut min = self.m.at(0, 0);
+        for i in 1..self.h() {
+            let x = self.m.at(i, 0);
+            if x < min {
+                min = x;
+                res = i;
+            }
+        }
+        res
+    }
+
     pub fn find_leaving_variable(&self, je: usize) -> LeavingCase<F> { // TODO(leo): get rid of dumb LeavingCase :/
         use self::LeavingCase::*;
         assert!(je != 0);
@@ -136,6 +233,7 @@ impl<F: OrdField> Dictionary<F> {
         for j in 1..self.w() {
             sum = sum + self.m.at(i, j) * sol[j-1];
         }
+        println!("SUM= {}", sum);
         sum
     }
 
@@ -143,6 +241,7 @@ impl<F: OrdField> Dictionary<F> {
         assert!(sol.len() == self.obj.len() - 1);
         for i in 0..self.h() {
             if self.eval_line(&sol, i) < F::zero() {
+                println!("BUURRRNNN");
                 return false;
             }
         }
@@ -169,11 +268,26 @@ impl<F: OrdField> Dictionary<F> {
     }
 
     pub fn test_simplex(&mut self) { // TODO: handle all cases
+        println!("INPUT OF PROGRAM:\n {}", self);
+
         let do_first_phase = {
             let nil_sol: Vec<F> = init_zero_vec(self.w()-1, F::zero());
-            self.is_solution(nil_sol)
+            !self.is_solution(nil_sol)
         };
-        println!("DODODO {}", do_first_phase);
+
+        println!("Should we do the first phase? {}", do_first_phase);
+
+        if (do_first_phase) {
+            let mut d = self.create_first_dict();
+            let i = d.find_first_pivot();
+            d.perform_pivot(self.w(), i);
+            println!("{}", d);
+            d.test_simplex();
+            println!("END OF FIRST PHASE with res {}", d.obj[0]);
+            d.project_dict(FIRST_PHASE_IDX, self);
+            println!("DICT FOR BEGINNING OF SECOND PHASE:\n {}", self);
+        }
+
         while let Step::Continue(i, j) = self.find_entering_variable() {
             self.perform_pivot(j, i);
             println!("{}", self);
