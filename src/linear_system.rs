@@ -341,7 +341,7 @@ impl<F: OrdField> Dictionary<F> {
                 Step::Continue(i, j) => self.perform_pivot(j, i),
                 Step::Unbounded(_) => { // TODO: give infinite line
                     println!("This LP is unbounded!");
-                    break;
+                    return;
                 },
                 Step::Finished => break,
             }
