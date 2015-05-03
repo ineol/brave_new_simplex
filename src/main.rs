@@ -8,16 +8,32 @@ use std::fs::File;
 use std::path::Path;
 use std::io::Read;
 use std::env;
-use std::io::{self, Stdout};
 
 use getopts::{Options};
 
 fn print_latex_header() {
-  //  let l = io::stdout.lock();
-  //  l.write("{}{}");
+    println!(r"\documentclass[9pt]{{article}}");
+    println!(r"\usepackage[latin1]{{inputenc}}");
+    println!(r"\usepackage[T1]{{fontenc}}");
+    println!(r"\usepackage[french]{{babel}}");
+    println!(r"\usepackage{{setspace}}");
+    println!(r"\usepackage{{lmodern}}");
+    println!(r"\usepackage{{soul}}");
+    println!(r"\usepackage{{ulem}}");
+    println!(r"\usepackage{{enumerate}}");
+    println!(r"\usepackage{{amsmath,amsfonts, amssymb}}");
+    println!(r"\usepackage{{mathrsfs}}");
+    println!(r"\usepackage{{amsthm}}");
+    println!(r"\usepackage{{float}}");
+    println!(r"\usepackage{{array}}");
+    println!(r"\usepackage{{mathabx}}");
+    println!(r"\usepackage{{stmaryrd}}");
+    println!("");
+    println!(r"\begin{{document}}");
 }
 
 fn print_latex_footer() {
+    println!(r"\end{{document}}");
 }
 
 fn main() {
@@ -49,7 +65,7 @@ fn main() {
     file.read_to_string(&mut src);
     let mut lp = parser::Parser::parse_lp(&src);
 
-    println!("{:?}", lp);
+    let kind = lp.goal;
 
     let mut d = lp.to_dict();
     let heur = if matches.opt_present("b") {
@@ -60,8 +76,32 @@ fn main() {
     let latex = matches.opt_present("l");
     if latex {
         print_latex_header();
+        println!("This is the initial dictionary: {}\n", d);
     }
-    d.run_simplex(heur, latex);
+    let x = d.run_simplex(heur, latex);
+
+    if let Some(opt) = x {
+        let opt = match kind {
+            linear_system::Maximize => opt,
+            linear_system::Minimize => -opt,
+        };
+        if latex {
+            println!("The optimum is ${}$\n", opt);
+        } else {
+            println!("The optimum is {:.10}\n", opt);
+        }
+
+        println!("Values of non-nil variables: \n");
+        for i in 0..d.h() {
+            if d.m.at(i, 0) == 0.0 { continue; }
+            if latex {
+                println!("$x_{{ {} }} = {}$\n", d.ll[i], d.m.at(i, 0));
+            } else {
+                println!("x_{} = {}\n", d.ll[i], d.m.at(i, 0));
+            }
+        }
+    }
+
     if latex {
         print_latex_footer();
     }

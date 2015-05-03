@@ -23,13 +23,13 @@ pub struct PBound {
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct LinearProgram {
-    obj: Vec<(f64, String)>,
-    obj_cst: f64,
-    goal: ObjectiveKind,
-    ineqs: Vec<PInequation<f64>>,
-    bounds: Vec<PBound>,
+    pub obj: Vec<(f64, String)>,
+    pub obj_cst: f64,
+    pub goal: ObjectiveKind,
+    pub ineqs: Vec<PInequation<f64>>,
+    pub bounds: Vec<PBound>,
 
-    vars: Vec<String>,
+    pub vars: Vec<String>,
     vars_inv: HashMap<String, usize>,
     dummy_idx: usize,
 }
@@ -200,14 +200,12 @@ impl<'a> Parser<'a> {
             p.ws();
         }
         let r = p.word(); // TODO: BOUNDS
-        println!("{}", r);
         p.ws();
         while let Some(b) = p.bound() {
             bounds.push(b);
             p.ws();
         }
         let r = p.word(); // VARIABLES
-        println!("{}", r);
         p.ws();
         let vars = p.variables();
         let vars_inv = LinearProgram::build_vars_inv(&vars);
@@ -269,7 +267,7 @@ impl<'a> Parser<'a> {
         let mut res: Vec<String> = Vec::new();
         loop {
             let v = self.word();
-            if v == "" { println!("End of File"); break; }
+            if v == "" { break; }
             res.push(v);
             self.ws();
         }
@@ -292,7 +290,7 @@ impl<'a> Parser<'a> {
     fn prod(&mut self) -> Option<(f64, String)> {
         match self.peek(0) {
             Some((_, c)) if Parser::is_number_start(c) => {
-                let n = self.number();
+                let n = self.signed_number();
                 self.ws();
                 self.eat('*');
                 self.ws();

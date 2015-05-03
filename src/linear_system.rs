@@ -134,11 +134,11 @@ impl<F: OrdField> Dictionary<F> {
         assert!(self.weq.len() == self.m.w);
     }
 
-    fn w(&self) -> usize {
+    pub fn w(&self) -> usize {
         self.m.w
     }
 
-    fn h(&self) -> usize {
+    pub fn h(&self) -> usize {
         self.m.h
     }
 
@@ -253,7 +253,6 @@ impl<F: OrdField> Dictionary<F> {
         //assert!(sol.len() == self.obj.len() - 1);
         for i in 0..self.h() {
             if self.eval_line(&sol, i) < F::zero() {
-                println!("BUURRRNNN");
                 return false;
             }
         }
@@ -296,14 +295,14 @@ impl<F: OrdField> Dictionary<F> {
         Finished
     }
 
-    pub fn run_simplex(&mut self, heur: Heuristic, latex: bool) {
+    pub fn run_simplex(&mut self, heur: Heuristic, latex: bool) -> Option<F> {
         let do_first_phase = {
             let nil_sol: Vec<F> = init_zero_vec(self.w()-1, F::zero());
             !self.is_solution(nil_sol)
         };
 
         if latex {
-            println!("Should we do the first phase? {}", do_first_phase);
+            println!("Should we do the first phase? {}\n", do_first_phase);
         }
 
         if (do_first_phase) {
@@ -313,16 +312,18 @@ impl<F: OrdField> Dictionary<F> {
             d.run_simplex(heur, latex);
             let res = F::zero() - d.obj[0];
             if latex {
-                println!("The minimum value of the dummy variable is {}", res);
+                println!("The minimum value of the dummy variable is {}\n", res);
                 if res > F::zero() {
-                    println!("It seems the input dictionary is not feasible!");
-                    return;
+                    println!("It seems the input dictionary is not feasible!\n");
+                    return None;
+                } else {
+                    println!("Therefore it is feasible!");
                 }
             }
 
             if !latex && res > F::zero() {
                 println!("The simplex is not feasible!");
-                return;
+                return None;
             }
 
 
@@ -337,30 +338,31 @@ impl<F: OrdField> Dictionary<F> {
         };
 
         loop {
+            if latex {
+                println!("{}\n", self)
+            }
             match fev(self) {
-                Step::Continue(i, j) => self.perform_pivot(j, i),
+                Step::Continue(i, j) => {
+                    if latex {
+                        println!("Performing pivot: entering {}, leaving {}\n", self.lc[j], self.ll[i]);
+                    }
+                    self.perform_pivot(j, i)
+                },
                 Step::Unbounded(_) => { // TODO: give infinite line
                     println!("This LP is unbounded!");
-                    return;
+                    return None;
                 },
                 Step::Finished => break,
             }
         }
 
-        println!("Values of variables (except when zero)");
-        for i in 0..self.h() {
-            if self.m.at(i, 0) != F::zero() {
-                println!("x_{} = {}", i, self.m.at(i, 0));
-            }
-        }
-        println!("And the objective is {}", self.obj[0]);
+        return Some(self.obj[0]);
 
     }
 
     /// `je`: entering variable
     /// `il`: leaving varaible
     pub fn perform_pivot(&mut self, je: usize, il: usize) {
-        println!("Performing pivot: entering {}, leaving {}", je, il);
         //assert!(je != 0);
         for x in self.weq.iter_mut() {
             *x = F::zero();
@@ -412,32 +414,32 @@ impl<F: OrdField> Dictionary<F> {
 impl<F: OrdField> Display for Dictionary<F> {
     // TODO(leo): Print x_0 as a cte
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        write!(f, r"$$ \begin{{array}}{{ccccccccccccccc}}");
         for i in 0..self.h() {
-            let _ = write!(f, "{}_{} = ", self.var_name, self.ll[i]);
+            let _ = write!(f, "&{}_{{ {} }} &= ", self.var_name, self.ll[i]);
 
             let mut first = true;
             for j in 0..self.w() { // TODO(leo): ugly!
                 if !first {
-                    let _ = write!(f, " + ");
+                    let _ = write!(f, "& + ");
                 }
                 first = false;
-                let _ = write!(f, "{} * {}_{}", self.m.at(i, j), self.var_name, self.lc[j]);
+                let _ = write!(f, "&{} {}_{{ {} }}", self.m.at(i, j), self.var_name, self.lc[j]);
             }
-            let _ = write!(f, "\n");
+            let _ = write!(f, "\\\\ \n");
 
         }
-        let _ = write!(f, "------------\n");
-        let _ = write!(f, "z   = ");
+        let _ = write!(f, "&z   &= ");
         let mut first = true;
         for j in 0..self.w() {
             if !first {
-                let _ = write!(f, " + ");
+                let _ = write!(f, "& + ");
             }
             first = false;
-            let _ = write!(f, "{} * {}_{}", self.obj[j], self.var_name, self.lc[j]);
+            let _ = write!(f, "&{} {}_{{ {} }}", self.obj[j], self.var_name, self.lc[j]);
         }
 
-        write!(f, "\n")
+        write!(f, r"\end{{array}} $$")
     }
 }
 
