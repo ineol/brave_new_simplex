@@ -8,31 +8,16 @@ use std::fs::File;
 use std::path::Path;
 use std::io::Read;
 use std::env;
+use std::io::{self, Stdout};
 
 use getopts::{Options};
 
 fn print_latex_header() {
-/*println!(r"\documentclass[10pt]{article}");
-println!(r"\usepackage[latin1]{inputenc}");
-println!(r"\usepackage[T1]{fontenc}");
-println!(r"\usepackage[french]{babel}");
-println!(r"\usepackage{setspace}");
-println!(r"\usepackage{lmodern}");
-println!(r"\usepackage{soul}");
-println!(r"\usepackage{ulem}");
-println!(r"\usepackage{enumerate}");
-println!(r"\usepackage{amsmath,amsfonts, amssymb}");
-println!(r"\usepackage{mathrsfs}");
-println!(r"\usepackage{amsthm}");
-println!(r"\usepackage{float}");
-println!(r"\usepackage{array}");
-println!(r"\usepackage{mathabx}");
-println!(r"\usepackage{stmaryrd}");
-println!(r"\begin{document}"); */
+  //  let l = io::stdout.lock();
+  //  l.write("{}{}");
 }
 
 fn print_latex_footer() {
-//    println!(r"\end{document}");
 }
 
 fn main() {
@@ -63,6 +48,8 @@ fn main() {
     let mut src = String::new();
     file.read_to_string(&mut src);
     let mut lp = parser::Parser::parse_lp(&src);
+
+    println!("{:?}", lp);
 
     let mut d = lp.to_dict();
     let heur = if matches.opt_present("b") {

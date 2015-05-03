@@ -311,7 +311,7 @@ impl<F: OrdField> Dictionary<F> {
             let i = d.find_first_pivot();
             d.perform_pivot(self.w(), i);
             d.run_simplex(heur, latex);
-            let res = d.obj[0];
+            let res = F::zero() - d.obj[0];
             if latex {
                 println!("The minimum value of the dummy variable is {}", res);
                 if res > F::zero() {
@@ -353,6 +353,7 @@ impl<F: OrdField> Dictionary<F> {
                 println!("x_{} = {}", i, self.m.at(i, 0));
             }
         }
+        println!("And the objective is {}", self.obj[0]);
 
     }
 
