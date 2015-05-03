@@ -121,7 +121,6 @@ impl<F: PartialOrd + Copy> PartialOrd for LeavingCase<F> {
 
 pub enum Step {
     Finished,
-    Empty, // TODO(leo): witness??
     Unbounded(usize), // "entering variable"
     Continue(usize, usize), // (entering, leaving)
 }
@@ -267,10 +266,8 @@ impl<F: OrdField> Dictionary<F> {
             if self.obj[j] > F::zero() {
                 println!("found non neg {:?} {:?}", j, self.find_leaving_variable(j));
                 if let LeavingCase::Pos(i, _) = self.find_leaving_variable(j) {
-                    println!("ctn with i={} j={}", i, j);
                     return Continue(i, j)
                 } else {
-                    println!("UNBOUNDED");
                     return Unbounded(j);
                 }
             }
@@ -291,32 +288,44 @@ impl<F: OrdField> Dictionary<F> {
 
         if max > F::zero() {
             if let LeavingCase::Pos(i, _) = self.find_leaving_variable(j) {
-                println!("ctn with i={} j={}", i, j);
                 return Continue(i, j)
             } else {
-                println!("UNBOUNDED");
                 return Unbounded(j);
             }
         }
         Finished
     }
 
-    pub fn run_simplex(&mut self, heur: Heuristic) { // TODO: handle all cases
-        //println!("INPUT OF PROGRAM:\n {}", self);
-
+    pub fn run_simplex(&mut self, heur: Heuristic, latex: bool) {
         let do_first_phase = {
             let nil_sol: Vec<F> = init_zero_vec(self.w()-1, F::zero());
             !self.is_solution(nil_sol)
         };
 
-        println!("Should we do the first phase? {}", do_first_phase);
+        if latex {
+            println!("Should we do the first phase? {}", do_first_phase);
+        }
 
         if (do_first_phase) {
             let mut d = self.create_first_dict();
             let i = d.find_first_pivot();
             d.perform_pivot(self.w(), i);
-            //println!("{}", d);
-            d.run_simplex(heur);
+            d.run_simplex(heur, latex);
+            let res = d.obj[0];
+            if latex {
+                println!("The minimum value of the dummy variable is {}", res);
+                if res > F::zero() {
+                    println!("It seems the input dictionary is not feasible!");
+                    return;
+                }
+            }
+
+            if !latex && res > F::zero() {
+                println!("The simplex is not feasible!");
+                return;
+            }
+
+
             //println!("END OF FIRST PHASE with res {}", d.obj[0]);
             d.project_dict(FIRST_PHASE_IDX, self);
             //println!("DICT FOR BEGINNING OF SECOND PHASE:\n {}", self);
@@ -327,15 +336,24 @@ impl<F: OrdField> Dictionary<F> {
             Heuristic::Dumb => Self::find_entering_variable_dumb,
         };
 
-        while let Step::Continue(i, j) = fev(self) {
-            self.perform_pivot(j, i);
+        loop {
+            match fev(self) {
+                Step::Continue(i, j) => self.perform_pivot(j, i),
+                Step::Unbounded(_) => { // TODO: give infinite line
+                    println!("This LP is unbounded!");
+                    break;
+                },
+                Step::Finished => break,
+            }
         }
+
         println!("Values of variables (except when zero)");
         for i in 0..self.h() {
             if self.m.at(i, 0) != F::zero() {
                 println!("x_{} = {}", i, self.m.at(i, 0));
             }
         }
+
     }
 
     /// `je`: entering variable

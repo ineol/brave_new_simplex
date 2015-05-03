@@ -11,6 +11,30 @@ use std::env;
 
 use getopts::{Options};
 
+fn print_latex_header() {
+/*println!(r"\documentclass[10pt]{article}");
+println!(r"\usepackage[latin1]{inputenc}");
+println!(r"\usepackage[T1]{fontenc}");
+println!(r"\usepackage[french]{babel}");
+println!(r"\usepackage{setspace}");
+println!(r"\usepackage{lmodern}");
+println!(r"\usepackage{soul}");
+println!(r"\usepackage{ulem}");
+println!(r"\usepackage{enumerate}");
+println!(r"\usepackage{amsmath,amsfonts, amssymb}");
+println!(r"\usepackage{mathrsfs}");
+println!(r"\usepackage{amsthm}");
+println!(r"\usepackage{float}");
+println!(r"\usepackage{array}");
+println!(r"\usepackage{mathabx}");
+println!(r"\usepackage{stmaryrd}");
+println!(r"\begin{document}"); */
+}
+
+fn print_latex_footer() {
+//    println!(r"\end{document}");
+}
+
 fn main() {
     let args: Vec<_> = env::args().collect();
 
@@ -41,5 +65,17 @@ fn main() {
     let mut lp = parser::Parser::parse_lp(&src);
 
     let mut d = lp.to_dict();
-    d.run_simplex(linear_system::Heuristic::Dumb);
+    let heur = if matches.opt_present("b") {
+        linear_system::Heuristic::Bland
+    } else {
+        linear_system::Heuristic::Dumb
+    };
+    let latex = matches.opt_present("l");
+    if latex {
+        print_latex_header();
+    }
+    d.run_simplex(heur, latex);
+    if latex {
+        print_latex_footer();
+    }
 }
