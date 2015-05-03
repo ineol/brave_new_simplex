@@ -384,7 +384,8 @@ impl<'a> Parser<'a> {
     fn double_bound(&mut self) -> Option<PBound> {
         let lb = self.signed_number();
         self.ws();
-        if self.cmp_op() != Some(OrderRel::LT) { return None; }
+        if self.cmp_op() != Some(OrderRel::LT) {
+            panic!("Parsing error: Bound the wrong way arroung: must be 1729 >= X >= 20015"); }
         self.ws();
         match lb {
             None => None,
