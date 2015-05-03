@@ -93,6 +93,12 @@ pub struct Dictionary<F: OrdField> {
     pub var_name: &'static str,
 }
 
+#[derive(Clone, Copy)]
+pub enum Heuristic {
+    Bland,
+    Dumb,
+}
+
 #[derive(PartialEq, Debug)]
 enum LeavingCase<F: PartialOrd> {
     NonNeg, // +infty
@@ -192,7 +198,6 @@ impl<F: OrdField> Dictionary<F> {
             if x_j == exc { continue; }
             if c_j != F::zero() {
                 if let Some(&x_i) = afp.ll.iter().find(|&x| *x == x_j) { // TODO(leo): WTF???
-                    println!("beep");
                     // x_i is a primary variable of afp.
                     for j in 0..res.len() {
                         res[j] = res[j] + c_j * self.m.at(x_i, j); // I FIXME(leo): i hate myself
@@ -274,7 +279,7 @@ impl<F: OrdField> Dictionary<F> {
         Finished
     }
 
-    pub fn find_entering_variable_d(&self) -> Step {
+    pub fn find_entering_variable_dumb(&self) -> Step {
         use self::Step::*;
         let mut max = self.obj[1];
         let mut jmax = 1;
@@ -283,7 +288,6 @@ impl<F: OrdField> Dictionary<F> {
         }
 
         let j = jmax + 1;
-        println!("j={}, max={}", j, max);
 
         if max > F::zero() {
             if let LeavingCase::Pos(i, _) = self.find_leaving_variable(j) {
@@ -297,7 +301,7 @@ impl<F: OrdField> Dictionary<F> {
         Finished
     }
 
-    pub fn test_simplex(&mut self) { // TODO: handle all cases
+    pub fn run_simplex(&mut self, heur: Heuristic) { // TODO: handle all cases
         //println!("INPUT OF PROGRAM:\n {}", self);
 
         let do_first_phase = {
@@ -312,16 +316,25 @@ impl<F: OrdField> Dictionary<F> {
             let i = d.find_first_pivot();
             d.perform_pivot(self.w(), i);
             //println!("{}", d);
-            d.test_simplex();
+            d.run_simplex(heur);
             //println!("END OF FIRST PHASE with res {}", d.obj[0]);
             d.project_dict(FIRST_PHASE_IDX, self);
             //println!("DICT FOR BEGINNING OF SECOND PHASE:\n {}", self);
         }
 
-        while let Step::Continue(i, j) = self.find_entering_variable_d() {
+        let fev: fn (&Self) -> Step = match heur {
+            Heuristic::Bland => Self::find_entering_variable,
+            Heuristic::Dumb => Self::find_entering_variable_dumb,
+        };
+
+        while let Step::Continue(i, j) = fev(self) {
             self.perform_pivot(j, i);
-            //println!("{}", self);
-            println!("obj={}", self.obj[0]);
+        }
+        println!("Values of variables (except when zero)");
+        for i in 0..self.h() {
+            if self.m.at(i, 0) != F::zero() {
+                println!("x_{} = {}", i, self.m.at(i, 0));
+            }
         }
     }
 
