@@ -111,7 +111,7 @@ impl LinearProgram {
 
     // The bound has no upper bound
     fn handle_lower_bound(&mut self, bidx: usize) {
-        let mut b = self.bounds[bidx].clone();
+        let b = self.bounds[bidx].clone();
         match b {
             PBound { var: ref x_j, upper: None, lower: Some(lower) } => {
                 if lower == 0.0 { return; }
@@ -199,13 +199,15 @@ impl<'a> Parser<'a> {
             ineqs.push(eq);
             p.ws();
         }
-        let r = p.word(); // TODO: BOUNDS
+        let r = p.word();
+        assert!(r == "BOUNDS");
         p.ws();
         while let Some(b) = p.bound() {
             bounds.push(b);
             p.ws();
         }
-        let r = p.word(); // VARIABLES
+        let r = p.word();
+        assert_eq!(r, "VARIABLES");
         p.ws();
         let vars = p.variables();
         let vars_inv = LinearProgram::build_vars_inv(&vars);
@@ -221,11 +223,6 @@ impl<'a> Parser<'a> {
 
            dummy_idx: 0,
         }
-    }
-
-    fn next_pos(&self) -> usize {
-        let mut it = self.cur.clone();
-        it.next().map(|p| p.0).unwrap_or(self.src.len())
     }
 
     fn eat(&mut self, c: char) -> bool {
@@ -297,7 +294,7 @@ impl<'a> Parser<'a> {
                 let w = self.word();
                 n.map(|x| (x, w))
             },
-            Some((_, c)) => {
+            Some(_) => {
                 Some((1.0, self.word()))
             },
             _ => None,

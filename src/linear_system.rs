@@ -263,7 +263,6 @@ impl<F: OrdField> Dictionary<F> {
         use self::Step::*;
         for j in 1..self.w() {
             if self.obj[j] > F::zero() {
-                println!("found non neg {:?} {:?}", j, self.find_leaving_variable(j));
                 if let LeavingCase::Pos(i, _) = self.find_leaving_variable(j) {
                     return Continue(i, j)
                 } else {
@@ -271,7 +270,6 @@ impl<F: OrdField> Dictionary<F> {
                 }
             }
         }
-        println!("finished");
         Finished
     }
 
@@ -305,7 +303,7 @@ impl<F: OrdField> Dictionary<F> {
             println!("Should we do the first phase? {}\n", do_first_phase);
         }
 
-        if (do_first_phase) {
+        if do_first_phase {
             let mut d = self.create_first_dict();
             let i = d.find_first_pivot();
             d.perform_pivot(self.w(), i);

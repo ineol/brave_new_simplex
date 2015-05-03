@@ -7,14 +7,14 @@ x + y + z + w <= 40
 2 x + y - z - w >= 10
 w - y >= 10
 
-bounds
+BOUNDS
 x >= 0
 y >= 0
 z >= 0
 w >= 0
 
 
-variables
+VARIABLES
 x
 y
 z

@@ -1,0 +1,6 @@
+#! /bin/bash
+
+target/release/simplex -bl $@ > dicts.tex
+
+pdflatex dicts.tex > /dev/null
+echo "Wrote dicts.pdf"

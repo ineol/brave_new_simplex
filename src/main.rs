@@ -1,6 +1,9 @@
 extern crate num;
 extern crate getopts;
 
+#[allow(dead_code)]
+#[allow(unused_must_use)]
+
 mod linear_system;
 mod parser;
 
@@ -62,7 +65,7 @@ fn main() {
     };
 
     let mut src = String::new();
-    file.read_to_string(&mut src);
+    let _ = file.read_to_string(&mut src);
     let mut lp = parser::Parser::parse_lp(&src);
 
     let kind = lp.goal;
